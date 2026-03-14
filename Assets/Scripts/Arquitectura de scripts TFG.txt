@@ -1,0 +1,160 @@
+Arquitectura de scripts TFG:
+A continuación la guía que me ha hecho:
+
+┌─────────────────────────────────────────────────────┐
+
+│               CAPA DE DOMINIO (Puro C#)             │
+
+│   PlayerVidaDomain          PlayerExperienciaDomain  │
+
+│   • RecibirDanio()          • GanarExperiencia()     │
+
+│   • Curar()                 • SubirNivel() [privado] │
+
+│   • OnVidaCambiada ──►      • OnExperienciaCambiada► │
+
+│                             • OnNivelSubido ─────►   │
+
+└──────────────────────┬──────────────────────────┬───┘
+
+                       │ eventos                  │
+
+┌──────────────────────▼──────────────────────────▼───┐
+
+│           GAME MANAGER (MonoBehaviour)              │
+
+│   • Instancia los dominios                          │
+
+│   • Cablea eventos ↔ adaptadores                    │
+
+│   • Sincroniza dominios entre sí (vida ↔ nivel)     │
+
+│   • [FUTURO] Llama al adaptador Firebase/MCP        │
+
+└──────────────────────┬──────────────────────────┬───┘
+
+                       │                          │
+
+┌──────────────────────▼───┐    ┌─────────────────▼───┐
+
+│   ADAPTADOR: BarraVidaUI │    │ ADAPTADOR: PanelNivel│
+
+│   • RefrescarBarra()     │    │ • RefrescarPanel()   │
+
+│   • Image (fillAmount)   │    │ • Image + TMP texto  │
+
+└──────────────────────────┘    └──────────────────────┘
+
+🖼️ Guía de configuración del Canvas — Paso a paso
+
+1. Canvas raíz
+
+Crea un Canvas en la escena:
+
+
+
+Render Mode → Screen Space – Overlay
+
+Añade Canvas Scaler → Scale With Screen Size, Reference: 1920 × 1080, Match: 0.5
+
+Añade Graphic Raycaster
+
+
+
+2. Zona de Salud (Arriba izquierda)
+
+Canvas
+
+ └── HP_Container       (Panel/vacío)
+
+      ├── Texto_HP      (TextMeshPro)
+
+      └── BarraHP_BG    (Image fondo gris oscuro)
+
+           └── BarraHP_Fill  (Image relleno rojo ← la que va al Inspector)
+
+HP_Container — RectTransform:
+
+CampoValorAnchor PresetTop Left (clic en la esquina sup-izq del panel de Anchors)Pivot0, 1Pos X / Y20, -20 (margen desde la esquina)Width / Height320, 40
+
+BarraHP_BG — RectTransform:
+
+
+
+Anchor: stretch horizontal + middle vertical dentro del contenedor
+
+Left: 70, Right: 0, Height: 28
+
+BarraHP_Fill — Image:
+
+
+
+Anchor: stretch-stretch (rellena el padre entero)
+
+Image Type → Filled
+
+Fill Method → Horizontal
+
+Fill Origin → Left
+
+Color: rojo #E53935
+
+⚠️ Sin hijos TextMeshPro — la barra queda completamente limpia
+
+3. Panel de Nivel/XP (Abajo, de lado a lado)
+
+Jerarquía:
+
+Canvas
+
+ └── Panel_Nivel         (Image fondo oscuro semitransparente)
+
+      ├── Texto_Nivel     (TextMeshPro grande, izquierda)
+
+      └── XP_Container    (RectTransform, centro-derecha)
+
+           ├── BarraXP_BG  (Image fondo gris)
+
+           │    └── BarraXP_Fill  (Image relleno cian ← Inspector)
+
+           └── Texto_XP    (TextMeshPro centrado sobre la barra ← Inspector)
+
+Panel_Nivel — RectTransform:
+
+CampoValorAnchor PresetBottom Stretch (ancla a los 4 bordes inferiores)Pivot0.5, 0Left / Right0 / 0Pos Y0Height60
+
+Texto_Nivel — RectTransform:
+
+
+
+Anchor: Left + Middle vertical dentro del panel
+
+Width: 160, centrado verticalmente
+
+Font Size: 28, Bold
+
+BarraXP_Fill — Image:
+
+
+
+Image Type → Filled / Fill Method → Horizontal / Color: cian #00BCD4
+
+Texto_XP — RectTransform:
+
+
+
+Anchor: stretch-stretch (igual que BarraXP_BG) para que quede perfectamente centrado
+
+Alignment: Center/Middle
+
+Font Size: 16, Color blanco
+
+4. Cableado final en el Inspector
+
+Crea un GameObject vacío llamado GameManager y adjúntale GameManager.cs.
+
+En su Inspector, arrastra:BarraVidaUI → el GameObject que tiene BarraVidaUI.cs (que a su vez tiene BarraHP_Fill asignada)
+
+PanelNivelUI → el GameObject que tiene PanelNivelUI.cs (con BarraXP_Fill y Texto_XP y Texto_Nivel asignados)
+
+Dale Play. Teclas: X = +35 XP · Z = -20 HP · C = +15 HP
