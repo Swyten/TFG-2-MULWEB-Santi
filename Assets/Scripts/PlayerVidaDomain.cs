@@ -5,63 +5,61 @@ using UnityEngine;
 /// CAPA DE DOMINIO — Gestión pura de la vida del jugador.
 /// ► No depende de MonoBehaviour, ni de UI, ni de ningún framework externo.
 /// ► Emite eventos tipados que los Adaptadores escuchan para actualizar la vista.
-/// ► Preparado para ser instanciado y controlado desde un GameManager central,
-///   o serializado/deserializado hacia Firebase vía n8n en fases posteriores.
 /// </summary>
 public class PlayerVidaDomain
 {
-    // ── Eventos del dominio ──────────────────────────────────────────────────
-    /// <summary>
-    /// Se dispara cada vez que la vida cambia (daño o curación).
-    /// Parámetros: (vidaActual, vidaMaxima)
-    /// Los adaptadores de UI se suscriben aquí para refrescar la barra de HP.
-    /// </summary>
+    // ── Eventos ──────────────────────────────────────────────────────────────
+
+    /// <summary>Vida cambió. Parámetros: (vidaActual, vidaMaxima).</summary>
     public event Action<float, float> OnVidaCambiada;
 
-    // ── Estado privado ───────────────────────────────────────────────────────
+    /// <summary>El jugador ha llegado a 0 de vida. Se emite una sola vez.</summary>
+    public event Action OnJugadorMuerto;
+
+    // ── Estado ───────────────────────────────────────────────────────────────
     private float _vidaActual;
     private float _vidaMaxima;
+    private bool  _estaMuerto;
 
-    // ── Propiedades de solo lectura (acceso externo seguro) ──────────────────
-    public float VidaActual => _vidaActual;
-    public float VidaMaxima => _vidaMaxima;
+    public float VidaActual  => _vidaActual;
+    public float VidaMaxima  => _vidaMaxima;
+    public bool  EstaMuerto  => _estaMuerto;
 
     // ── Constructor ──────────────────────────────────────────────────────────
-    /// <param name="vidaMaxima">Vida máxima con la que arranca el jugador.</param>
     public PlayerVidaDomain(float vidaMaxima)
     {
         _vidaMaxima = vidaMaxima;
         _vidaActual = vidaMaxima;
+        _estaMuerto = false;
     }
 
-    // ── Casos de uso (Lógica de negocio) ─────────────────────────────────────
+    // ── Casos de uso ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Aplica una cantidad de daño al jugador.
-    /// La vida nunca bajará por debajo de 0.
-    /// </summary>
     public void RecibirDanio(float cantidad)
     {
+        if (_estaMuerto) return;
+
         _vidaActual = Mathf.Max(0f, _vidaActual - cantidad);
         Debug.Log($"[Dominio·Vida] Daño: -{cantidad} | Vida: {_vidaActual}/{_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
+
+        if (_vidaActual <= 0f)
+        {
+            _estaMuerto = true;
+            Debug.Log("[Dominio·Vida] El jugador ha muerto.");
+            OnJugadorMuerto?.Invoke();
+        }
     }
 
-    /// <summary>
-    /// Cura al jugador en una cantidad dada.
-    /// La vida nunca superará la vida máxima.
-    /// </summary>
     public void Curar(float cantidad)
     {
+        if (_estaMuerto) return;
+
         _vidaActual = Mathf.Min(_vidaMaxima, _vidaActual + cantidad);
         Debug.Log($"[Dominio·Vida] Curación: +{cantidad} | Vida: {_vidaActual}/{_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
     }
 
-    /// <summary>
-    /// Actualiza la vida máxima del jugador (p.ej. al subir de nivel).
-    /// Reajusta la vida actual si ahora excede el nuevo máximo.
-    /// </summary>
     public void SetVidaMaxima(float nuevaMaxima)
     {
         _vidaMaxima = nuevaMaxima;
