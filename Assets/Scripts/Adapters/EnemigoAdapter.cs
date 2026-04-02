@@ -15,6 +15,14 @@ public class EnemigoAdapter : MonoBehaviour
     [Header("Referencias de Escena")]
     [SerializeField] private Transform jugador;
 
+    [Header("Loot (opcional)")]
+    [Tooltip("Arma que puede dropear al morir. Déjalo vacío para que no droppee nada.")]
+    [SerializeField] private ArmaDefinicion armaDropeable;
+
+    [Range(0f, 1f)]
+    [Tooltip("Probabilidad de drop: 0 = nunca, 1 = siempre.")]
+    [SerializeField] private float probabilidadDrop = 0.5f;
+
     [Header("Efectos (opcional)")]
     [SerializeField] private ParticleSystem efectoMuerte;
     [SerializeField] private AudioSource    audioSource;
@@ -94,6 +102,15 @@ public class EnemigoAdapter : MonoBehaviour
 
         if (GameManager.Instancia != null)
             GameManager.Instancia.DarExperiencia(xp);
+
+        // Drop de arma con probabilidad configurable
+        if (armaDropeable != null && armaDropeable.pickupPrefab != null
+            && Random.value <= probabilidadDrop)
+        {
+            Vector3 posicionDrop = transform.position + Vector3.up * 0.5f;
+            Instantiate(armaDropeable.pickupPrefab, posicionDrop, Quaternion.identity);
+            Debug.Log($"[EnemigoAdapter] Drop: '{armaDropeable.nombreArma}'");
+        }
 
         if (efectoMuerte != null)
         {

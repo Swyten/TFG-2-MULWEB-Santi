@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 public class WeaponAdapter : MonoBehaviour
 {
-    [Header("Configuración del Arma")]
+    [Header("Configuración por defecto")]
     [SerializeField] private int   municionMaxima  = 12;
     [SerializeField] private float cadencia        = 0.15f;
     [SerializeField] private float duracionRecarga = 1.5f;
@@ -15,6 +15,13 @@ public class WeaponAdapter : MonoBehaviour
     [SerializeField] private GameObject bulletPrefab;
     [SerializeField] private ParticleSystem muzzleFlash;
 
+    [Tooltip("Padre donde se instancia el modelo visual del arma equipada. " +
+             "Normalmente es un Transform hijo de la cámara (p.ej. 'PortaArmas').")]
+    [SerializeField] private Transform portaArmas;
+
+    [Tooltip("Referencia al PlayerMovement para bloquear disparo cuando el inventario está abierto.")]
+    [SerializeField] private PlayerMovement playerMovement;
+
     [Header("Audio (opcional)")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip   audioDisparo;
@@ -23,14 +30,11 @@ public class WeaponAdapter : MonoBehaviour
 
     private WeaponDomain _dominio;
 
+    // ── Ciclo de vida ─────────────────────────────────────────────────────────
+
     private void Awake()
     {
-        _dominio = new WeaponDomain(
-            municionMaxima:  municionMaxima,
-            cadencia:        cadencia,
-            duracionRecarga: duracionRecarga
-        );
-
+        _dominio = new WeaponDomain(municionMaxima, cadencia, duracionRecarga);
         SuscribirEventos();
 
         if (mainCamera == null)
@@ -39,25 +43,58 @@ public class WeaponAdapter : MonoBehaviour
             if (mainCamera == null)
                 Debug.LogWarning("[WeaponAdapter] No se encontró ninguna cámara.");
         }
-
-        Debug.Log($"[WeaponAdapter] Dominio de arma inicializado. " +
-                  $"Cargador: {municionMaxima} | Cadencia: {cadencia}s | " +
-                  $"Recarga: {duracionRecarga}s | Fuerza: {bulletForce}");
     }
 
     private void Update()
     {
-        // Guard: si el dominio es null (puede pasar un frame tras desactivación) salir
         if (_dominio == null) return;
 
         _dominio.Tick(Time.deltaTime);
+
+        // No leer input si el inventario (u otro sistema) lo bloqueó
+        if (playerMovement != null && playerMovement.InputBloqueado) return;
         LeerInput();
     }
 
-    private void OnDestroy()
+    private void OnDestroy() => DesuscribirEventos();
+
+    // ── API pública — Equipar arma desde el inventario ────────────────────────
+
+    /// <summary>
+    /// Equipa un arma: reinicia el dominio con sus stats y reemplaza el modelo visual.
+    /// Llamado por InventarioAdapter cuando el jugador pulsa "Equipar".
+    /// </summary>
+    public void EquiparArma(ArmaInventario arma, ArmaDefinicion definicion)
     {
+        // Reiniciar dominio con los stats del arma nueva
         DesuscribirEventos();
+        _dominio = new WeaponDomain(arma.MunicionMaxima, arma.Cadencia, arma.DuracionRecarga);
+        SuscribirEventos();
+
+        // Actualizar referencias Unity
+        bulletForce  = arma.FuerzaBala;
+        bulletPrefab = definicion.bulletPrefab;
+
+        // Actualizar audio si el arma define clips propios
+        if (definicion.audioDisparo != null) audioDisparo = definicion.audioDisparo;
+        if (definicion.audioRecarga != null) audioRecarga = definicion.audioRecarga;
+        if (definicion.audioSeco    != null) audioSeco    = definicion.audioSeco;
+
+        // Reemplazar modelo visual en la mano del jugador
+        if (portaArmas != null)
+        {
+            foreach (Transform hijo in portaArmas)
+                Destroy(hijo.gameObject);
+
+            if (definicion.modeloEquipado != null)
+                Instantiate(definicion.modeloEquipado, portaArmas);
+        }
+
+        Debug.Log($"[WeaponAdapter] Arma equipada: {arma.Nombre} | " +
+                  $"Cargador: {arma.MunicionMaxima} | Cadencia: {arma.Cadencia}s");
     }
+
+    // ── Input ─────────────────────────────────────────────────────────────────
 
     private void LeerInput()
     {
@@ -67,6 +104,8 @@ public class WeaponAdapter : MonoBehaviour
         if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             _dominio.IniciarRecarga();
     }
+
+    // ── Suscripciones ─────────────────────────────────────────────────────────
 
     private void SuscribirEventos()
     {
@@ -87,6 +126,8 @@ public class WeaponAdapter : MonoBehaviour
         _dominio.OnRecargaCompletada -= AlCompletarRecarga;
     }
 
+    // ── Callbacks del dominio ─────────────────────────────────────────────────
+
     private void AlDisparar(int municionActual, int municionMax)
     {
         if (bulletPrefab == null || firePoint == null || mainCamera == null)
@@ -101,8 +142,7 @@ public class WeaponAdapter : MonoBehaviour
             : ray.GetPoint(100f);
 
         Vector3 direction = (targetPoint - firePoint.position).normalized;
-
-        GameObject bala = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(direction));
+        GameObject bala   = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(direction));
 
         if (bala.TryGetComponent(out Rigidbody rb))
             rb.AddForce(direction * bulletForce, ForceMode.Impulse);
@@ -110,7 +150,7 @@ public class WeaponAdapter : MonoBehaviour
         if (muzzleFlash != null) muzzleFlash.Play();
         ReproducirAudio(audioDisparo);
 
-        Debug.Log($"[WeaponAdapter] ¡Disparo! | Impulso: {bulletForce} | Munición: {municionActual}/{municionMax}");
+        Debug.Log($"[WeaponAdapter] ¡Disparo! Munición: {municionActual}/{municionMax}");
     }
 
     private void AlQuedarSinMunicion()
@@ -119,10 +159,8 @@ public class WeaponAdapter : MonoBehaviour
         Debug.Log("[WeaponAdapter] Sin munición.");
     }
 
-    private void AlCambiarMunicion(int actual, int max)
-    {
+    private void AlCambiarMunicion(int actual, int max) =>
         Debug.Log($"[WeaponAdapter] Munición → {actual}/{max}");
-    }
 
     private void AlIniciarRecarga(float tiempo)
     {
@@ -130,10 +168,8 @@ public class WeaponAdapter : MonoBehaviour
         Debug.Log($"[WeaponAdapter] Recargando... ({tiempo:F1}s)");
     }
 
-    private void AlCompletarRecarga(int actual, int max)
-    {
+    private void AlCompletarRecarga(int actual, int max) =>
         Debug.Log($"[WeaponAdapter] ¡Recarga completada! {actual}/{max}");
-    }
 
     private void ReproducirAudio(AudioClip clip)
     {

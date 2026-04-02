@@ -13,6 +13,9 @@ public class GameManager : MonoBehaviour
     [Header("Adaptador de Muerte del Jugador")]
     [SerializeField] private PlayerMuerteAdapter playerMuerteAdapter;
 
+    [Header("Inventario")]
+    [SerializeField] private InventarioAdapter inventarioAdapter;
+
     private PlayerVidaDomain        _domVida;
     private PlayerExperienciaDomain _domXP;
 
@@ -52,6 +55,17 @@ public class GameManager : MonoBehaviour
 
     public void DaniarJugador(float cantidad)  => _domVida.RecibirDanio(cantidad);
     public void DarExperiencia(int cantidad)   => _domXP.GanarExperiencia(cantidad);
+
+    /// <summary>
+    /// Llamado por ArmaPickupAdapter cuando el jugador recoge un arma del suelo.
+    /// </summary>
+    public void AgregarArmaAlInventario(ArmaDefinicion definicion)
+    {
+        if (inventarioAdapter != null)
+            inventarioAdapter.AgregarArma(definicion);
+        else
+            Debug.LogWarning("[GameManager] inventarioAdapter no asignado — no se puede añadir el arma.");
+    }
 
     /// <summary>
     /// Llamado por BarraVidaUI.Start() — garantiza suscripción después de Awake.

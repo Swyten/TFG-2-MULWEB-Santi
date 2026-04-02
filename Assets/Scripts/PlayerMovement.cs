@@ -108,6 +108,11 @@ public class PlayerMovement : MonoBehaviour
     // VARIABLES PRIVADAS INTERNAS
     // =========================================================================
 
+    /// <summary>
+    /// Cuando es true, bloquea cámara, movimiento y dash (p. ej. al abrir el inventario).
+    /// </summary>
+    public bool InputBloqueado { get; set; }
+
     private CharacterController _characterController;
 
     // --- Movimiento general ---
@@ -216,6 +221,8 @@ public class PlayerMovement : MonoBehaviour
     // =========================================================================
     private void Update()
     {
+        if (InputBloqueado) return;
+
         ManejarCamara();      // Siempre activa
         ManejarGancho();      // Prioridad máxima de estado
         ManejarDash();        // Solo si no hay gancho
