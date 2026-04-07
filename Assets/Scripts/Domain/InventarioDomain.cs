@@ -13,6 +13,7 @@ public class InventarioDomain
     public event Action                  OnCerrado;
     public event Action<ArmaInventario>  OnArmaAgregada;
     public event Action<ArmaInventario>  OnArmaEquipada;
+    public event Action                  OnArmaDesequipada;
 
     // ── Estado ────────────────────────────────────────────────────────────────
     private bool _estaAbierto;
@@ -60,5 +61,12 @@ public class InventarioDomain
         _armaEquipada = arma;
         OnArmaEquipada?.Invoke(arma);
         return true;
+    }
+
+    public void DesequiparArma()
+    {
+        if (_armaEquipada == null) return;
+        _armaEquipada = null;
+        OnArmaDesequipada?.Invoke();
     }
 }

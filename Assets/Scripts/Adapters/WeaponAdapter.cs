@@ -3,6 +3,10 @@ using UnityEngine.InputSystem;
 
 public class WeaponAdapter : MonoBehaviour
 {
+    [Header("Arma inicial (opcional)")]
+    [Tooltip("Si se asigna, esta arma se equipa automáticamente al iniciar la partida.")]
+    [SerializeField] private ArmaDefinicion armaInicial;
+
     [Header("Configuración por defecto")]
     [SerializeField] private int   municionMaxima  = 12;
     [SerializeField] private float cadencia        = 0.15f;
@@ -45,6 +49,12 @@ public class WeaponAdapter : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        if (armaInicial != null)
+            EquiparArma(armaInicial.CrearDatosDominio(), armaInicial);
+    }
+
     private void Update()
     {
         if (_dominio == null) return;
@@ -64,6 +74,15 @@ public class WeaponAdapter : MonoBehaviour
     /// Equipa un arma: reinicia el dominio con sus stats y reemplaza el modelo visual.
     /// Llamado por InventarioAdapter cuando el jugador pulsa "Equipar".
     /// </summary>
+    public void DesequiparArma()
+    {
+        if (armaInicial != null)
+            EquiparArma(armaInicial.CrearDatosDominio(), armaInicial);
+        else if (portaArmas != null)
+            foreach (Transform hijo in portaArmas)
+                Destroy(hijo.gameObject);
+    }
+
     public void EquiparArma(ArmaInventario arma, ArmaDefinicion definicion)
     {
         // Reiniciar dominio con los stats del arma nueva

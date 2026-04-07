@@ -55,7 +55,7 @@ public class ArmaPickupAdapter : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+if (!other.CompareTag("Player")) return;
         _jugadorEnRango = true;
         if (textoRecogida != null) textoRecogida.SetActive(true);
         Debug.Log($"[ArmaPickupAdapter] Jugador en rango de '{definicion?.nombreArma}'.");
@@ -72,7 +72,7 @@ public class ArmaPickupAdapter : MonoBehaviour
 
     private void Recoger()
     {
-        if (GameManager.Instancia == null)
+if (GameManager.Instancia == null)
         {
             Debug.LogWarning("[ArmaPickupAdapter] GameManager.Instancia es null.");
             return;

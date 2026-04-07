@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -39,16 +40,19 @@ public class InventarioAdapter : MonoBehaviour
 
     // Mapa ArmaInventario → ArmaDefinicion para recuperar prefabs al equipar
     private readonly Dictionary<ArmaInventario, ArmaDefinicion> _mapaDefiniciones = new();
+    // Mapa ArmaInventario → Botón de su slot para actualizar el texto
+    private readonly Dictionary<ArmaInventario, Button> _mapaBotones = new();
 
     // ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     private void Awake()
     {
         _dominio = new InventarioDomain();
-        _dominio.OnAbierto      += AlAbrir;
-        _dominio.OnCerrado      += AlCerrar;
-        _dominio.OnArmaAgregada += AlAgregarArma;
-        _dominio.OnArmaEquipada += AlEquiparArma;
+        _dominio.OnAbierto        += AlAbrir;
+        _dominio.OnCerrado        += AlCerrar;
+        _dominio.OnArmaAgregada   += AlAgregarArma;
+        _dominio.OnArmaEquipada   += AlEquiparArma;
+        _dominio.OnArmaDesequipada += AlDesequiparArma;
 
         if (panelInventario != null)
             panelInventario.SetActive(false);
@@ -64,10 +68,11 @@ public class InventarioAdapter : MonoBehaviour
 
     private void OnDestroy()
     {
-        _dominio.OnAbierto      -= AlAbrir;
-        _dominio.OnCerrado      -= AlCerrar;
-        _dominio.OnArmaAgregada -= AlAgregarArma;
-        _dominio.OnArmaEquipada -= AlEquiparArma;
+        _dominio.OnAbierto        -= AlAbrir;
+        _dominio.OnCerrado        -= AlCerrar;
+        _dominio.OnArmaAgregada   -= AlAgregarArma;
+        _dominio.OnArmaEquipada   -= AlEquiparArma;
+        _dominio.OnArmaDesequipada -= AlDesequiparArma;
     }
 
     // ── API pública ───────────────────────────────────────────────────────────
@@ -125,7 +130,24 @@ public class InventarioAdapter : MonoBehaviour
 
     private void AlEquiparArma(ArmaInventario arma)
     {
-        Debug.Log($"[InventarioAdapter] Arma equipada en dominio: {arma.Nombre}");
+        foreach (var par in _mapaBotones)
+        {
+            TMP_Text textoBoton = par.Value.GetComponentInChildren<TMP_Text>();
+            if (textoBoton != null)
+                textoBoton.text = par.Key == arma ? "Desequipar" : "Equipar";
+        }
+        Debug.Log($"[InventarioAdapter] Arma equipada: {arma.Nombre}");
+    }
+
+    private void AlDesequiparArma()
+    {
+        foreach (Button boton in _mapaBotones.Values)
+        {
+            TMP_Text textoBoton = boton.GetComponentInChildren<TMP_Text>();
+            if (textoBoton != null)
+                textoBoton.text = "Equipar";
+        }
+        Debug.Log("[InventarioAdapter] Arma desequipada.");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -141,37 +163,43 @@ public class InventarioAdapter : MonoBehaviour
                 imagenes[imagenes.Length - 1].sprite = def.iconoUI;
         }
 
-        // Nombre — busca el primer Text hijo
-        Text textoNombre = slot.GetComponentInChildren<Text>();
+        // Nombre — busca el primer TMP_Text hijo
+        TMP_Text textoNombre = slot.GetComponentInChildren<TMP_Text>();
         if (textoNombre != null)
             textoNombre.text = arma.Nombre;
 
-        // Botón equipar — busca el Button hijo
+        // Botón equipar/desequipar — busca el Button hijo
         Button botonEquipar = slot.GetComponentInChildren<Button>();
         if (botonEquipar != null)
         {
-            // Captura local para el closure del listener
+            _mapaBotones[arma] = botonEquipar;
             ArmaInventario armaCap = arma;
-            botonEquipar.onClick.AddListener(() => EquiparDesdeSlot(armaCap));
+            botonEquipar.onClick.AddListener(() => AlternarEquipado(armaCap));
         }
     }
 
-    private void EquiparDesdeSlot(ArmaInventario arma)
+    private void AlternarEquipado(ArmaInventario arma)
     {
-        if (!_mapaDefiniciones.TryGetValue(arma, out ArmaDefinicion definicion))
+        if (_dominio.ArmaEquipada == arma)
         {
-            Debug.LogWarning($"[InventarioAdapter] Sin definición para: {arma.Nombre}");
-            return;
+            _dominio.DesequiparArma();
+            if (weaponAdapter != null)
+                weaponAdapter.DesequiparArma();
+        }
+        else
+        {
+            if (!_mapaDefiniciones.TryGetValue(arma, out ArmaDefinicion definicion))
+            {
+                Debug.LogWarning($"[InventarioAdapter] Sin definición para: {arma.Nombre}");
+                return;
+            }
+            _dominio.EquiparArma(arma);
+            if (weaponAdapter != null)
+                weaponAdapter.EquiparArma(arma, definicion);
+            else
+                Debug.LogWarning("[InventarioAdapter] weaponAdapter no asignado.");
         }
 
-        _dominio.EquiparArma(arma);
-
-        if (weaponAdapter != null)
-            weaponAdapter.EquiparArma(arma, definicion);
-        else
-            Debug.LogWarning("[InventarioAdapter] weaponAdapter no asignado — arma equipada en dominio pero no en escena.");
-
-        // Cerrar inventario al equipar
         _dominio.Cerrar();
     }
 }
