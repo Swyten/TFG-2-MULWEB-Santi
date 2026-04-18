@@ -35,7 +35,6 @@ public class GameManager : MonoBehaviour
     {
         if (Keyboard.current.xKey.wasPressedThisFrame) _domXP.GanarExperiencia(35);
         if (Keyboard.current.zKey.wasPressedThisFrame) _domVida.RecibirDanio(20f);
-        if (Keyboard.current.cKey.wasPressedThisFrame) _domVida.Curar(15f);
     }
 
     private void OnDestroy()
