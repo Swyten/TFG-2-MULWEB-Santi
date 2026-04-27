@@ -4,26 +4,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// <summary>
-/// ADAPTADOR — Inventario del jugador.
-///
-/// CONFIGURACIÓN EN EL INSPECTOR:
-///   • panelInventario   → GameObject raíz del panel de inventario en el Canvas.
-///   • contenedorSlots   → Transform (Layout Group) donde se generan los slots de arma.
-///   • prefabSlotArma    → Prefab de un slot. Debe tener:
-///                           - Image (icono del arma) como hijo.
-///                           - Text o TMP_Text con el nombre del arma como hijo.
-///                           - Button con el texto "Equipar" como hijo.
-///   • playerMovement    → PlayerMovement del jugador.
-///   • weaponAdapter     → WeaponAdapter del jugador.
-///
-/// COMPORTAMIENTO:
-///   • Tab → Abre / cierra el inventario.
-///   • Al abrir  → Panel visible, cursor libre, input del jugador bloqueado.
-///   • Al cerrar → Panel oculto, cursor bloqueado, input reactivo.
-///   • Al recoger un arma → Se crea un slot en el contenedor.
-///   • Al pulsar "Equipar" en un slot → Se equipa el arma en WeaponAdapter.
-/// </summary>
+// Adapter del inventario: une el dominio con la UI y con el sistema de armas
+// Tab → abre/cierra el inventario
+// Al abrir: panel visible, cursor libre, input del jugador bloqueado
+// Al cerrar: panel oculto, cursor bloqueado, input reactivo
+// Al recoger un arma: se crea un slot en el contenedor
+// Al pulsar "Equipar": se llama a WeaponAdapter para equipar el arma
 public class InventarioAdapter : MonoBehaviour
 {
     [Header("UI")]
@@ -38,12 +24,10 @@ public class InventarioAdapter : MonoBehaviour
 
     private InventarioDomain _dominio;
 
-    // Mapa ArmaInventario → ArmaDefinicion para recuperar prefabs al equipar
+    // guardo la relación entre ArmaInventario y su ArmaDefinicion para recuperar prefabs al equipar
     private readonly Dictionary<ArmaInventario, ArmaDefinicion> _mapaDefiniciones = new();
-    // Mapa ArmaInventario → Botón de su slot para actualizar el texto
+    // guardo también el botón de cada slot para cambiar su texto entre "Equipar" y "Desequipar"
     private readonly Dictionary<ArmaInventario, Button> _mapaBotones = new();
-
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
 
     private void Awake()
     {
@@ -55,7 +39,7 @@ public class InventarioAdapter : MonoBehaviour
         _dominio.OnArmaDesequipada += AlDesequiparArma;
 
         if (panelInventario != null)
-            panelInventario.SetActive(false);
+            panelInventario.SetActive(false); // empieza oculto
         else
             Debug.LogWarning("[InventarioAdapter] 'panelInventario' no asignado.");
     }
@@ -75,20 +59,14 @@ public class InventarioAdapter : MonoBehaviour
         _dominio.OnArmaDesequipada -= AlDesequiparArma;
     }
 
-    // ── API pública ───────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Llamado por GameManager.AgregarArmaAlInventario().
-    /// Mapea la definición Unity → datos de dominio y los añade al inventario.
-    /// </summary>
+    // llamado por GameManager.AgregarArmaAlInventario()
+    // convierto la definición Unity en datos de dominio y los añado al inventario
     public void AgregarArma(ArmaDefinicion definicion)
     {
         ArmaInventario datos = definicion.CrearDatosDominio();
-        _mapaDefiniciones[datos] = definicion;
+        _mapaDefiniciones[datos] = definicion; // guardo la referencia para poder equiparla después
         _dominio.AgregarArma(datos);
     }
-
-    // ── Callbacks del dominio ─────────────────────────────────────────────────
 
     private void AlAbrir()
     {
@@ -128,6 +106,7 @@ public class InventarioAdapter : MonoBehaviour
         Debug.Log($"[InventarioAdapter] Slot creado para: {arma.Nombre}");
     }
 
+    // cuando equipo un arma cambio el texto de su botón a "Desequipar" y el del resto a "Equipar"
     private void AlEquiparArma(ArmaInventario arma)
     {
         foreach (var par in _mapaBotones)
@@ -150,30 +129,27 @@ public class InventarioAdapter : MonoBehaviour
         Debug.Log("[InventarioAdapter] Arma desequipada.");
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private void ConfigurarSlot(GameObject slot, ArmaInventario arma)
     {
-        // Icono — busca la primera Image del slot (excluyendo el fondo si hay varios)
+        // asigno el icono a la última Image del slot (la primera suele ser el fondo)
         if (_mapaDefiniciones.TryGetValue(arma, out ArmaDefinicion def) && def.iconoUI != null)
         {
             Image[] imagenes = slot.GetComponentsInChildren<Image>();
-            // La última Image suele ser el icono (la primera es el fondo del slot)
             if (imagenes.Length > 1)
                 imagenes[imagenes.Length - 1].sprite = def.iconoUI;
         }
 
-        // Nombre — busca el primer TMP_Text hijo
+        // nombre del arma en el primer TMP_Text que encuentro
         TMP_Text textoNombre = slot.GetComponentInChildren<TMP_Text>();
         if (textoNombre != null)
             textoNombre.text = arma.Nombre;
 
-        // Botón equipar/desequipar — busca el Button hijo
+        // botón de equipar/desequipar: guardo la referencia y le asigno el listener
         Button botonEquipar = slot.GetComponentInChildren<Button>();
         if (botonEquipar != null)
         {
             _mapaBotones[arma] = botonEquipar;
-            ArmaInventario armaCap = arma;
+            ArmaInventario armaCap = arma; // capturo la variable para el lambda
             botonEquipar.onClick.AddListener(() => AlternarEquipado(armaCap));
         }
     }
@@ -182,6 +158,7 @@ public class InventarioAdapter : MonoBehaviour
     {
         if (_dominio.ArmaEquipada == arma)
         {
+            // si ya estaba equipada, la desequipo
             _dominio.DesequiparArma();
             if (weaponAdapter != null)
                 weaponAdapter.DesequiparArma();
@@ -200,6 +177,6 @@ public class InventarioAdapter : MonoBehaviour
                 Debug.LogWarning("[InventarioAdapter] weaponAdapter no asignado.");
         }
 
-        _dominio.Cerrar();
+        _dominio.Cerrar(); // cierro el inventario después de equipar/desequipar
     }
 }

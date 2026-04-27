@@ -1,17 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// ADAPTADOR — Ataque melee del jugador.
-///
-/// CONFIGURACIÓN EN EL INSPECTOR:
-///   • danio          → Daño por golpe (defecto: 25).
-///   • cooldown       → Segundos entre golpes (defecto: 0.8).
-///   • rango          → Radio del OverlapSphere en metros (defecto: 1.5).
-///   • capaMaskEnemigos → Layer de los enemigos para el hit detection.
-///   • puntoAtaque    → Transform desde donde se lanza el OverlapSphere
-///                      (normalmente un hijo de la cámara, frente al jugador).
-/// </summary>
+// Adapter del ataque melee del jugador
+// Pulso C para atacar; uso un OverlapSphere desde el puntoAtaque para detectar enemigos
 public class MeleeAdapter : MonoBehaviour
 {
     [Header("Stats")]
@@ -36,6 +27,7 @@ public class MeleeAdapter : MonoBehaviour
         _dominio = new MeleeDomain(danio, cooldown);
         _dominio.OnAtaqueMelee += AlGolpear;
 
+        // si no asigno puntoAtaque en el Inspector uso la posición del propio objeto
         if (puntoAtaque == null)
             puntoAtaque = transform;
     }
@@ -53,11 +45,13 @@ public class MeleeAdapter : MonoBehaviour
         _dominio.OnAtaqueMelee -= AlGolpear;
     }
 
+    // cuando el dominio confirma el ataque, hago el OverlapSphere y daño a los enemigos que encuentro
     private void AlGolpear()
     {
-Collider[] hits = Physics.OverlapSphere(puntoAtaque.position, rango, capaMaskEnemigos);
+        Collider[] hits = Physics.OverlapSphere(puntoAtaque.position, rango, capaMaskEnemigos);
         foreach (Collider col in hits)
         {
+            // busco en el padre por si impacto un sub-collider del enemigo
             EnemigoAdapter enemigo = col.GetComponentInParent<EnemigoAdapter>();
             if (enemigo != null)
             {
@@ -70,7 +64,7 @@ Collider[] hits = Physics.OverlapSphere(puntoAtaque.position, rango, capaMaskEne
         if (audioSource != null && clipGolpe != null) audioSource.PlayOneShot(clipGolpe);
     }
 
-    // Visualización del rango en el editor
+    // dibujo el rango de ataque en el editor para ver bien cuánto abarca
     private void OnDrawGizmosSelected()
     {
         if (puntoAtaque == null) return;

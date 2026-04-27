@@ -1,24 +1,19 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// CAPA DE DOMINIO — Gestión pura del estado de un enemigo.
-/// ► Sin UnityEngine (salvo Mathf). Sin MonoBehaviour.
-/// ► Emite eventos tipados que EnemyAdapter escucha para animar, morir, etc.
-/// </summary>
+// Dominio del enemigo: C# puro, sin MonoBehaviour
+// Gestiona su vida y sus ataques; EnemyAdapter escucha los eventos para animar, morir, etc.
 public class EnemigoDomain
 {
-    // ── Eventos ──────────────────────────────────────────────────────────────
-    /// <summary>Vida actual cambió (vidaActual, vidaMaxima).</summary>
+    // vida actual cambió → (vidaActual, vidaMaxima)
     public event Action<float, float> OnVidaCambiada;
 
-    /// <summary>El enemigo ha muerto. Parámetro: XP que otorga al jugador.</summary>
+    // el enemigo ha muerto → parámetro: XP que otorga al jugador
     public event Action<int> OnMuerto;
 
-    /// <summary>El enemigo ataca al jugador. Parámetro: daño que inflige.</summary>
+    // el enemigo ataca → parámetro: daño que inflige
     public event Action<float> OnAtaque;
 
-    // ── Estado ───────────────────────────────────────────────────────────────
     private float _vidaActual;
     private float _vidaMaxima;
     private float _danioAtaque;
@@ -27,12 +22,10 @@ public class EnemigoDomain
     private bool  _estaMuerto;
     private int   _xpAlMorir;
 
-    // ── Propiedades ───────────────────────────────────────────────────────────
     public float VidaActual => _vidaActual;
     public float VidaMaxima => _vidaMaxima;
     public bool  EstaMuerto => _estaMuerto;
 
-    // ── Constructor ───────────────────────────────────────────────────────────
     public EnemigoDomain(float vidaMaxima, float danioAtaque, float cadenciaAtaque, int xpAlMorir)
     {
         _vidaMaxima     = vidaMaxima;
@@ -44,8 +37,7 @@ public class EnemigoDomain
         _xpAlMorir      = xpAlMorir;
     }
 
-    // ── Casos de uso ──────────────────────────────────────────────────────────
-
+    // se llama cada frame desde el adapter; acumulo tiempo y ataco cuando corresponde
     public void TickAtaque(float deltaTime, bool enRango)
     {
         if (_estaMuerto) return;
@@ -64,15 +56,13 @@ public class EnemigoDomain
     {
         if (_estaMuerto) return;
 
-        _vidaActual = Mathf.Max(0f, _vidaActual - cantidad);
+        _vidaActual = Mathf.Max(0f, _vidaActual - cantidad); // no bajo de 0
         Debug.Log($"[EnemigoDomain] Daño recibido: -{cantidad} | Vida: {_vidaActual}/{_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
 
         if (_vidaActual <= 0f)
             Morir();
     }
-
-    // ── Privados ──────────────────────────────────────────────────────────────
 
     private void Morir()
     {

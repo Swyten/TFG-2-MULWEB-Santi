@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Singleton que wirea el dominio con los adapters de UI y gestiona eventos globales
+// Es el único sitio donde creo los objetos de dominio (PlayerVidaDomain y PlayerExperienciaDomain)
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instancia { get; private set; }
@@ -19,18 +21,18 @@ public class GameManager : MonoBehaviour
     private PlayerVidaDomain        _domVida;
     private PlayerExperienciaDomain _domXP;
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
-
     private void Awake()
     {
+        // patrón singleton: si ya existe una instancia destruyo este y salgo
         if (Instancia != null && Instancia != this) { Destroy(gameObject); return; }
         Instancia = this;
 
         InicializarDominio();
-        CablearEventosFijos();   // Solo los eventos que no dependen de BarraVidaUI
+        CablearEventosFijos();   // solo los eventos que no dependen de BarraVidaUI
         EmitirEstadoInicial();
     }
 
+    // teclas de prueba: X da 35 XP, Z quita 20 de vida
     private void Update()
     {
         if (Keyboard.current.xKey.wasPressedThisFrame) _domXP.GanarExperiencia(35);
@@ -50,14 +52,11 @@ public class GameManager : MonoBehaviour
         if (Instancia == this) Instancia = null;
     }
 
-    // ── API pública para Adapters ─────────────────────────────────────────────
-
+    // API que usan los adapters para dañar al jugador o darle XP sin acceder al dominio directamente
     public void DaniarJugador(float cantidad)  => _domVida.RecibirDanio(cantidad);
     public void DarExperiencia(int cantidad)   => _domXP.GanarExperiencia(cantidad);
 
-    /// <summary>
-    /// Llamado por ArmaPickupAdapter cuando el jugador recoge un arma del suelo.
-    /// </summary>
+    // llamado por ArmaPickupAdapter cuando el jugador recoge un arma del suelo
     public void AgregarArmaAlInventario(ArmaDefinicion definicion)
     {
         if (inventarioAdapter != null)
@@ -66,27 +65,22 @@ public class GameManager : MonoBehaviour
             Debug.LogWarning("[GameManager] inventarioAdapter no asignado — no se puede añadir el arma.");
     }
 
-    /// <summary>
-    /// Llamado por BarraVidaUI.Start() — garantiza suscripción después de Awake.
-    /// </summary>
+    // llamado por BarraVidaUI.Start() para suscribirse después de que Awake haya inicializado el dominio
+    // de esta forma evito problemas con el orden de ejecución de scripts
     public void RegistrarBarraVida(BarraVidaUI barra)
     {
         _domVida.OnVidaCambiada += barra.RefrescarBarra;
-        // Forzar refresco inmediato para que la barra muestre el estado actual
+        // fuerzo un refresco inmediato para que la barra muestre el estado actual desde el primer frame
         barra.RefrescarBarra(_domVida.VidaActual, _domVida.VidaMaxima);
         Debug.Log("[GameManager] BarraVidaUI registrada y refrescada.");
     }
 
-    /// <summary>
-    /// Llamado por BarraVidaUI.OnDestroy() para limpiar la suscripción.
-    /// </summary>
+    // llamado por BarraVidaUI.OnDestroy() para limpiar la suscripción
     public void DesregistrarBarraVida(BarraVidaUI barra)
     {
         if (_domVida != null)
             _domVida.OnVidaCambiada -= barra.RefrescarBarra;
     }
-
-    // ── Privados ──────────────────────────────────────────────────────────────
 
     private void InicializarDominio()
     {
@@ -97,7 +91,6 @@ public class GameManager : MonoBehaviour
 
     private void CablearEventosFijos()
     {
-        // XP y niveles
         if (panelNivelUI != null)
             _domXP.OnExperienciaCambiada += panelNivelUI.RefrescarPanel;
         else
@@ -105,7 +98,6 @@ public class GameManager : MonoBehaviour
 
         _domXP.OnNivelSubido += OnJugadorSubioNivel;
 
-        // Muerte del jugador
         if (playerMuerteAdapter != null)
             _domVida.OnJugadorMuerto += playerMuerteAdapter.OnJugadorMuerto;
         else
@@ -116,9 +108,9 @@ public class GameManager : MonoBehaviour
 
     private void EmitirEstadoInicial()
     {
-        // No forzamos Curar(0) aquí porque BarraVidaUI aún no se ha registrado
-        // (se registra en Start, que ocurre después de este Awake).
-        // El refresco inicial lo hace RegistrarBarraVida().
+        // no fuerzo Curar(0) aquí porque BarraVidaUI aún no se ha registrado
+        // (se registra en su Start, que ocurre después de este Awake)
+        // el refresco inicial lo hace RegistrarBarraVida()
         _domXP.GanarExperiencia(0);
     }
 

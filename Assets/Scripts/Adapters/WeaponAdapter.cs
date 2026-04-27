@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Adapter del arma: hace de puente entre el dominio y Unity
+// Lee input, llama a los métodos del dominio y reacciona a sus eventos
 public class WeaponAdapter : MonoBehaviour
 {
     [Header("Arma inicial (opcional)")]
@@ -34,8 +36,6 @@ public class WeaponAdapter : MonoBehaviour
 
     private WeaponDomain _dominio;
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
-
     private void Awake()
     {
         _dominio = new WeaponDomain(municionMaxima, cadencia, duracionRecarga);
@@ -61,19 +61,15 @@ public class WeaponAdapter : MonoBehaviour
 
         _dominio.Tick(Time.deltaTime);
 
-        // No leer input si el inventario (u otro sistema) lo bloqueó
+        // no leo input si el inventario (u otro sistema) lo bloqueó
         if (playerMovement != null && playerMovement.InputBloqueado) return;
         LeerInput();
     }
 
     private void OnDestroy() => DesuscribirEventos();
 
-    // ── API pública — Equipar arma desde el inventario ────────────────────────
-
-    /// <summary>
-    /// Equipa un arma: reinicia el dominio con sus stats y reemplaza el modelo visual.
-    /// Llamado por InventarioAdapter cuando el jugador pulsa "Equipar".
-    /// </summary>
+    // equipa un arma: reinicia el dominio con sus stats y reemplaza el modelo visual
+    // se llama desde InventarioAdapter cuando el jugador pulsa "Equipar"
     public void DesequiparArma()
     {
         if (armaInicial != null)
@@ -85,21 +81,20 @@ public class WeaponAdapter : MonoBehaviour
 
     public void EquiparArma(ArmaInventario arma, ArmaDefinicion definicion)
     {
-        // Reiniciar dominio con los stats del arma nueva
+        // creo un dominio nuevo con los stats del arma nueva
         DesuscribirEventos();
         _dominio = new WeaponDomain(arma.MunicionMaxima, arma.Cadencia, arma.DuracionRecarga);
         SuscribirEventos();
 
-        // Actualizar referencias Unity
         bulletForce  = arma.FuerzaBala;
         bulletPrefab = definicion.bulletPrefab;
 
-        // Actualizar audio si el arma define clips propios
+        // actualizo los clips de audio solo si el arma define los suyos propios
         if (definicion.audioDisparo != null) audioDisparo = definicion.audioDisparo;
         if (definicion.audioRecarga != null) audioRecarga = definicion.audioRecarga;
         if (definicion.audioSeco    != null) audioSeco    = definicion.audioSeco;
 
-        // Reemplazar modelo visual en la mano del jugador
+        // destruyo el modelo anterior y pongo el del arma nueva en la mano del jugador
         if (portaArmas != null)
         {
             foreach (Transform hijo in portaArmas)
@@ -113,8 +108,6 @@ public class WeaponAdapter : MonoBehaviour
                   $"Cargador: {arma.MunicionMaxima} | Cadencia: {arma.Cadencia}s");
     }
 
-    // ── Input ─────────────────────────────────────────────────────────────────
-
     private void LeerInput()
     {
         if (Mouse.current != null && Mouse.current.leftButton.isPressed)
@@ -123,8 +116,6 @@ public class WeaponAdapter : MonoBehaviour
         if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             _dominio.IniciarRecarga();
     }
-
-    // ── Suscripciones ─────────────────────────────────────────────────────────
 
     private void SuscribirEventos()
     {
@@ -145,8 +136,6 @@ public class WeaponAdapter : MonoBehaviour
         _dominio.OnRecargaCompletada -= AlCompletarRecarga;
     }
 
-    // ── Callbacks del dominio ─────────────────────────────────────────────────
-
     private void AlDisparar(int municionActual, int municionMax)
     {
         if (bulletPrefab == null || firePoint == null || mainCamera == null)
@@ -155,6 +144,8 @@ public class WeaponAdapter : MonoBehaviour
             return;
         }
 
+        // la dirección de la bala apunta al centro de la pantalla, no al forward del firePoint
+        // así el disparo siempre va donde miro, aunque el arma esté descentrada
         Ray ray = mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         Vector3 targetPoint = Physics.Raycast(ray, out RaycastHit hit)
             ? hit.point

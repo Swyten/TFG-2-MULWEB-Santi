@@ -1,11 +1,10 @@
 using System;
 
-/// <summary>
-/// CAPA DE DOMINIO — Lógica pura del ataque cuerpo a cuerpo del jugador.
-/// ► C# puro: sin UnityEngine, sin MonoBehaviour.
-/// </summary>
+// Dominio del ataque melee: C# puro, sin UnityEngine
+// Solo guarda el daño, el cooldown y dispara el evento cuando puede atacar
 public class MeleeDomain
 {
+    // el adapter escucha esto para hacer el OverlapSphere y reproducir efectos
     public event Action OnAtaqueMelee;
 
     public float Danio    { get; }
@@ -18,9 +17,10 @@ public class MeleeDomain
     {
         Danio    = danio;
         Cooldown = cooldown;
-        _timer   = 0f;
+        _timer   = 0f; // listo para atacar desde el primer frame
     }
 
+    // descuento el timer cada frame; el adapter me lo llama con Time.deltaTime
     public void Tick(float deltaTime)
     {
         if (_timer > 0f)
@@ -30,7 +30,7 @@ public class MeleeDomain
     public void IntentarAtacar()
     {
         if (!PuedeAtacar) return;
-        _timer = Cooldown;
+        _timer = Cooldown; // reinicio el cooldown
         OnAtaqueMelee?.Invoke();
     }
 }

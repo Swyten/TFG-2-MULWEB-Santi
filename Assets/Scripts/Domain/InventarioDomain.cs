@@ -1,21 +1,17 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>
-/// CAPA DE DOMINIO — Estado puro del inventario del jugador.
-/// ► Sin dependencias de UnityEngine ni de UI.
-/// ► Gestiona la colección de armas y cuál está equipada.
-/// </summary>
+// Dominio del inventario: C# puro, sin Unity
+// Gestiona qué armas tengo y cuál está equipada
+// El adapter escucha los eventos y actualiza la UI y el WeaponAdapter
 public class InventarioDomain
 {
-    // ── Eventos ───────────────────────────────────────────────────────────────
     public event Action                  OnAbierto;
     public event Action                  OnCerrado;
     public event Action<ArmaInventario>  OnArmaAgregada;
     public event Action<ArmaInventario>  OnArmaEquipada;
     public event Action                  OnArmaDesequipada;
 
-    // ── Estado ────────────────────────────────────────────────────────────────
     private bool _estaAbierto;
     public  bool EstaAbierto => _estaAbierto;
 
@@ -25,7 +21,6 @@ public class InventarioDomain
     private ArmaInventario _armaEquipada;
     public  ArmaInventario ArmaEquipada => _armaEquipada;
 
-    // ── Casos de uso: inventario ──────────────────────────────────────────────
     public void Abrir()
     {
         if (_estaAbierto) return;
@@ -40,13 +35,13 @@ public class InventarioDomain
         OnCerrado?.Invoke();
     }
 
+    // toggle para abrir y cerrar con la misma tecla (Tab)
     public void Toggle()
     {
         if (_estaAbierto) Cerrar();
         else Abrir();
     }
 
-    // ── Casos de uso: armas ───────────────────────────────────────────────────
     public bool AgregarArma(ArmaInventario arma)
     {
         if (arma == null) return false;
@@ -55,6 +50,7 @@ public class InventarioDomain
         return true;
     }
 
+    // solo puedo equipar un arma que esté en mi inventario
     public bool EquiparArma(ArmaInventario arma)
     {
         if (!_armas.Contains(arma)) return false;

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+// Se activa cuando el jugador muere: muestra el Game Over y recarga la escena
 public class PlayerMuerteAdapter : MonoBehaviour
 {
     [Header("UI Game Over")]
@@ -9,7 +10,7 @@ public class PlayerMuerteAdapter : MonoBehaviour
 
     [Header("Reinicio")]
     [SerializeField] private float delayReinicio = 3f;
-    [SerializeField] private string nombreEscena = "";
+    [SerializeField] private string nombreEscena = ""; // si está vacío recarga la escena actual
 
     private void Awake()
     {
@@ -20,6 +21,7 @@ public class PlayerMuerteAdapter : MonoBehaviour
             Debug.Log("[PlayerMuerteAdapter] Listo. Panel Game Over asignado.");
     }
 
+    // el GameManager llama a este método cuando PlayerVidaDomain emite OnJugadorMuerto
     public void OnJugadorMuerto()
     {
         Debug.Log("[PlayerMuerteAdapter] ¡GAME OVER! Ejecutando secuencia de muerte...");
@@ -27,6 +29,7 @@ public class PlayerMuerteAdapter : MonoBehaviour
         if (panelGameOver != null)
             panelGameOver.SetActive(true);
 
+        // deshabilito el movimiento y el arma para que el jugador no pueda seguir jugando
         if (TryGetComponent(out PlayerMovement movimiento))
             movimiento.enabled = false;
 
@@ -38,6 +41,7 @@ public class PlayerMuerteAdapter : MonoBehaviour
 
     private void RecargarEscena()
     {
+        // si no especifiqué nombre de escena, recargo la que está activa
         string escena = !string.IsNullOrEmpty(nombreEscena)
             ? nombreEscena
             : SceneManager.GetActiveScene().name;

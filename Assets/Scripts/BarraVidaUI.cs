@@ -1,12 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// ADAPTADOR DE UI — Barra de salud (HP).
-/// Se auto-registra en el GameManager en Start() para garantizar
-/// que la suscripción ocurre DESPUÉS de que GameManager.Awake() haya
-/// inicializado el dominio, independientemente del orden de ejecución.
-/// </summary>
+// Adapter de UI: muestra la barra de vida del jugador
+// Me registro en el GameManager desde Start() para garantizar que Awake() ya ha inicializado el dominio
+// De esta forma no me preocupo por el orden de ejecución de scripts
 public class BarraVidaUI : MonoBehaviour
 {
     [Header("Referencia de UI")]
@@ -21,8 +18,7 @@ public class BarraVidaUI : MonoBehaviour
 
     private void Start()
     {
-        // Start se ejecuta después de TODOS los Awake, así que GameManager
-        // ya ha inicializado el dominio cuando llegamos aquí.
+        // Start se ejecuta después de TODOS los Awake, así que GameManager ya existe cuando llego aquí
         if (GameManager.Instancia != null)
         {
             GameManager.Instancia.RegistrarBarraVida(this);
@@ -41,7 +37,7 @@ public class BarraVidaUI : MonoBehaviour
             GameManager.Instancia.DesregistrarBarraVida(this);
     }
 
-    /// <summary>Llamado por el dominio de vida cada vez que la vida cambia.</summary>
+    // el dominio de vida llama a este método cada vez que la vida cambia
     public void RefrescarBarra(float vidaActual, float vidaMaxima)
     {
         if (barraRelleno == null) return;

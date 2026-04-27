@@ -1,16 +1,14 @@
 using UnityEngine;
 
-/// <summary>
-/// ScriptableObject que define todos los datos de un arma.
-/// Crea un asset: clic derecho en Project → TFG → Definición de Arma.
-///
-/// PREFABS NECESARIOS:
-///   pickupPrefab     → El objeto 3D que aparece en el suelo al morir el enemigo.
-///                      Debe tener ArmaPickupAdapter + SphereCollider (Is Trigger).
-///   modeloEquipado   → El modelo 3D que se muestra en la mano del jugador al equipar.
-///                      Se instancia como hijo del portaArmas del WeaponAdapter.
-///   bulletPrefab     → Prefab de la bala (igual al de WeaponAdapter actual).
-/// </summary>
+// ScriptableObject que define todos los datos de un arma
+// Creo un asset nuevo con: clic derecho en Project → TFG → Definición de Arma
+//
+// Prefabs que necesita cada arma:
+//   pickupPrefab   → el objeto 3D que aparece en el suelo cuando el enemigo muere
+//                    debe tener ArmaPickupAdapter + SphereCollider (Is Trigger)
+//   modeloEquipado → el modelo 3D que se ve en la mano del jugador al equiparla
+//                    se instancia como hijo del portaArmas del WeaponAdapter
+//   bulletPrefab   → el prefab de la bala que dispara
 [CreateAssetMenu(fileName = "NuevaArma", menuName = "TFG/Definición de Arma")]
 public class ArmaDefinicion : ScriptableObject
 {
@@ -40,10 +38,8 @@ public class ArmaDefinicion : ScriptableObject
     public AudioClip audioRecarga;
     public AudioClip audioSeco;
 
-    /// <summary>
-    /// Crea el objeto de dominio puro a partir de este ScriptableObject.
-    /// Llamado por los Adapters al recoger/equipar el arma.
-    /// </summary>
+    // convierte este ScriptableObject en datos de dominio puros
+    // lo llaman los adapters al recoger o equipar el arma
     public ArmaInventario CrearDatosDominio() =>
         new ArmaInventario(id, nombreArma, municionMaxima, cadencia, duracionRecarga, fuerzaBala);
 }

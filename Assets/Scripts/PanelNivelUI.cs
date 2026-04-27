@@ -2,11 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// ADAPTADOR DE UI — Panel de nivel y barra de experiencia (XP).
-/// Versión corregida: genera el sprite de la barra por código,
-/// eliminando la dependencia del paquete 2D Sprite de Unity.
-/// </summary>
+// Adapter de UI: muestra el nivel y la barra de XP del jugador
+// Genero el sprite de la barra por código para evitar el efecto "burbuja" del 9-slice de Unity
 public class PanelNivelUI : MonoBehaviour
 {
     [Header("Referencias de UI")]
@@ -14,12 +11,9 @@ public class PanelNivelUI : MonoBehaviour
     [SerializeField] private Image barraXP;
     [SerializeField] private TextMeshProUGUI textoBarraXP;
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
-
     private void Awake()
     {
-        // Genera y asigna un sprite cuadrado puro por código.
-        // Esto elimina el efecto "burbuja" causado por UISprite (9-slice).
+        // creo un sprite de 1×1 píxel blanco por código para que la barra Filled no tenga el bug del 9-slice
         if (barraXP != null)
         {
             barraXP.sprite    = CrearSpriteBlanco();
@@ -30,11 +24,7 @@ public class PanelNivelUI : MonoBehaviour
         }
     }
 
-    // ── API pública ───────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Recibe (xpActual, xpSiguienteNivel, nivel) y refresca toda la zona inferior.
-    /// </summary>
+    // recibo (xpActual, xpSiguienteNivel, nivel) desde el dominio y actualizo toda la zona inferior de la HUD
     public void RefrescarPanel(int xpActual, int xpSiguienteNivel, int nivel)
     {
         if (textoNivel != null)
@@ -49,12 +39,7 @@ public class PanelNivelUI : MonoBehaviour
             textoBarraXP.text = $"{xpActual} / {xpSiguienteNivel} XP";
     }
 
-    // ── Helpers privados ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Crea un Sprite de 1×1 píxel blanco puro.
-    /// Sin bordes, sin 9-slice → la Image Filled se rellena de forma limpia.
-    /// </summary>
+    // sprite de 1×1 blanco: sin bordes ni 9-slice, la barra Filled se rellena limpiamente
     private Sprite CrearSpriteBlanco()
     {
         Texture2D tex = new Texture2D(1, 1);

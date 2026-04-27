@@ -1,39 +1,18 @@
-using System.Collections;  // Necesario para IEnumerator (Corrutinas)
+using System.Collections;  // necesito IEnumerator para la corrutina del dash
 using UnityEngine;
-using UnityEngine.InputSystem; // Nuevo Input System de Unity 6
+using UnityEngine.InputSystem; // nuevo Input System de Unity 6
 
-/// <summary>
-/// Controlador de movimiento en primera persona — Unity 6 / Nuevo Input System.
-/// NO requiere un Input Action Asset (.inputactions) en el Editor.
-///
-/// CARACTERÍSTICAS COMPLETAS:
-///   ✔ Movimiento WASD con CharacterController
-///   ✔ Cámara FPS con ratón
-///   ✔ Gravedad constante
-///   ✔ Doble salto configurable
-///   ✔ Dash con duración y cooldown (corrutina)
-///   ✔ Gancho (Grappling Hook) con Raycast, vuelo y cancelación
-///   ✔ Cable visual del gancho con LineRenderer + origen configurable
-///
-/// REQUISITOS:
-///   - Paquete "Input System" instalado (Package Manager).
-///   - CharacterController en el mismo GameObject.
-///   - Cámara FPS como hijo del jugador, asignada en el Inspector.
-///   - LineRenderer asignado en el Inspector (puede estar en un hijo vacío).
-///   - GrappleOrigin: Transform hijo que marca el punto de salida del cable.
-/// </summary>
+// Controla el movimiento del jugador en primera persona
+// No uso un archivo .inputactions, creo las acciones directamente por código en Awake
+// Tiene WASD, cámara FPS, gravedad, doble salto, dash y gancho (grappling hook)
+// El gancho tiene prioridad máxima, luego el dash, luego el movimiento normal
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    // =========================================================================
-    // INSPECTOR — PARÁMETROS CONFIGURABLES
-    // =========================================================================
-
     [Header("Movimiento")]
     [Tooltip("Velocidad de desplazamiento normal en m/s.")]
     public float velocidadMovimiento = 5f;
 
-    // -------------------------------------------------------------------------
     [Header("Salto y Gravedad")]
     [Tooltip("Fuerza con la que el jugador salta.")]
     public float fuerzaSalto = 5f;
@@ -44,7 +23,6 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Intensidad de la gravedad (valor negativo).")]
     public float gravedad = -9.81f;
 
-    // -------------------------------------------------------------------------
     [Header("Dash")]
     [Tooltip("Velocidad del impulso del Dash en m/s.")]
     public float dashVelocidad = 20f;
@@ -55,7 +33,6 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Tiempo de recarga del Dash en segundos.")]
     public float dashCooldown = 1.5f;
 
-    // -------------------------------------------------------------------------
     [Header("Gancho (Grappling Hook)")]
     [Tooltip("Distancia máxima a la que puede engancharse el gancho.")]
     public float ganchoDistanciaMaxima = 30f;
@@ -66,13 +43,14 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Distancia mínima al punto de enganche para soltar automáticamente.")]
     public float ganchoDistanciaLlegada = 1.5f;
 
-    // -------------------------------------------------------------------------
     [Header("Cable del Gancho (LineRenderer)")]
     [Tooltip("LineRenderer que dibuja el cable del gancho. " +
              "Asígnalo desde el Inspector. Puede vivir en un GameObject hijo vacío. " +
              "Configura su Material y ancho (Width) a tu gusto en el Inspector.")]
     public LineRenderer grappleLine;
 
+    // el cable sale desde este transform (la mano/arma) en vez del centro de la cámara
+    // si no lo asigno, uso la cámara como fallback para no tener errores
     [Tooltip("Origen del cable visual del gancho. " +
              "Coloca un GameObject vacío hijo de la cámara (p.ej. en la posición del arma) " +
              "y asígnalo aquí. El cable saldrá desde ese punto en lugar de desde el centro " +
@@ -80,7 +58,6 @@ public class PlayerMovement : MonoBehaviour
              "Si se deja vacío, se usará la posición de la cámara como fallback.")]
     public Transform grappleOrigin;
 
-    // -------------------------------------------------------------------------
     [Header("Cámara Primera Persona")]
     [Tooltip("Referencia a la cámara hija del jugador.")]
     public Camera camaraPrimeraPersona;
@@ -94,46 +71,30 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Límite de rotación vertical hacia abajo (grados).")]
     public float limiteVerticalAbajo = 80f;
 
-    // =========================================================================
-    // INPUT ACTIONS — Creadas por código (sin Asset en el Editor)
-    // =========================================================================
-
+    // las InputActions las creo aquí en código, sin asset en el editor
     private InputAction _accionMover;
     private InputAction _accionSaltar;
     private InputAction _accionMirar;
-    // Dash   → Keyboard.current.leftShiftKey  (lectura directa)
-    // Gancho → Mouse.current.rightButton      (lectura directa)
+    // el dash (Shift izq) y el gancho (botón derecho) los leo directo con Keyboard/Mouse.current
 
-    // =========================================================================
-    // VARIABLES PRIVADAS INTERNAS
-    // =========================================================================
-
-    /// <summary>
-    /// Cuando es true, bloquea cámara, movimiento y dash (p. ej. al abrir el inventario).
-    /// </summary>
+    // cuando esto está a true bloqueo cámara, movimiento y dash (p.ej. al abrir el inventario)
     public bool InputBloqueado { get; set; }
 
     private CharacterController _characterController;
 
-    // --- Movimiento general ---
     private float _velocidadVertical         = 0f;
     private float _rotacionVerticalAcumulada = 0f;
 
-    // --- Doble salto ---
     private int _saltosRestantes = 0;
 
-    // --- Dash ---
     private bool    _isDashing      = false;
     private bool    _dashEnCooldown = false;
     private Vector3 _dashDireccion  = Vector3.zero;
 
-    // --- Gancho ---
     private bool    _isGrappling = false;
     private Vector3 _ganchoPoint = Vector3.zero;
 
-    // =========================================================================
-    // AWAKE — Inicialización y registro de InputActions
-    // =========================================================================
+    // aquí creo y registro todas las InputActions
     private void Awake()
     {
         _characterController = GetComponent<CharacterController>();
@@ -148,14 +109,13 @@ public class PlayerMovement : MonoBehaviour
         if (grappleLine == null)
             Debug.LogWarning("[PlayerMovement] ¡Asigna el LineRenderer (grappleLine) en el Inspector!");
 
-        // Aviso si grappleOrigin no está asignado (no es error crítico, hay fallback)
         if (grappleOrigin == null)
             Debug.LogWarning("[PlayerMovement] grappleOrigin no asignado. " +
                              "Se usará la posición de la cámara como origen del cable. " +
                              "Para un mejor resultado FPS, crea un GameObject vacío hijo " +
                              "de la cámara y asígnalo aquí.");
 
-        // --- Movimiento WASD + flechas (2D Vector Composite) ---
+        // movimiento WASD + flechas usando un composite 2DVector
         _accionMover = new InputAction(
             name: "Mover",
             type: InputActionType.Value,
@@ -173,11 +133,10 @@ public class PlayerMovement : MonoBehaviour
         bindingFlechas.With("Left",  "<Keyboard>/leftArrow");
         bindingFlechas.With("Right", "<Keyboard>/rightArrow");
 
-        // --- Salto (barra espaciadora) ---
         _accionSaltar = new InputAction(name: "Saltar", type: InputActionType.Button);
         _accionSaltar.AddBinding("<Keyboard>/space");
 
-        // --- Mirada (delta del ratón) ---
+        // el delta del ratón me da cuánto se movió entre frames, perfecto para la cámara FPS
         _accionMirar = new InputAction(
             name: "Mirar",
             type: InputActionType.Value,
@@ -190,21 +149,16 @@ public class PlayerMovement : MonoBehaviour
         _accionMirar.Enable();
     }
 
-    // =========================================================================
-    // START — Estado inicial de componentes visuales
-    // =========================================================================
     private void Start()
     {
         if (grappleLine != null)
         {
-            grappleLine.positionCount = 2;    // El cable siempre tiene exactamente 2 puntos
-            grappleLine.enabled       = false; // Invisible hasta que se active el gancho
+            grappleLine.positionCount = 2;     // el cable tiene siempre 2 puntos: origen y destino
+            grappleLine.enabled       = false; // empieza invisible hasta que lance el gancho
         }
     }
 
-    // =========================================================================
-    // ONDESTROY — Liberación de recursos del Input System
-    // =========================================================================
+    // limpio las InputActions para no dejar referencias sueltas al destruir el objeto
     private void OnDestroy()
     {
         _accionMover.Disable();
@@ -216,30 +170,23 @@ public class PlayerMovement : MonoBehaviour
         _accionMirar.Dispose();
     }
 
-    // =========================================================================
-    // UPDATE — Tick principal (lógica y estado)
-    // =========================================================================
+    // orden de prioridad: gancho > dash > movimiento normal
     private void Update()
     {
         if (InputBloqueado) return;
 
-        ManejarCamara();      // Siempre activa
-        ManejarGancho();      // Prioridad máxima de estado
-        ManejarDash();        // Solo si no hay gancho
-        ManejarMovimiento();  // Bloqueado según estado activo
+        ManejarCamara();      // siempre activa
+        ManejarGancho();      // prioridad máxima de estado
+        ManejarDash();        // solo si no hay gancho activo
+        ManejarMovimiento();  // bloqueado según el estado activo
     }
 
-    // =========================================================================
-    // LATE UPDATE — Actualización visual del cable (después de que todo se mueva)
-    // =========================================================================
+    // actualizo el cable en LateUpdate para que se mueva después de que todo se haya movido
     private void LateUpdate()
     {
         ActualizarCableVisual();
     }
 
-    // =========================================================================
-    // CÁMARA FPS — Sin cambios
-    // =========================================================================
     private void ManejarCamara()
     {
         if (camaraPrimeraPersona == null) return;
@@ -248,6 +195,7 @@ public class PlayerMovement : MonoBehaviour
         float mouseX = deltaRaton.x * sensibilidadRaton;
         float mouseY = deltaRaton.y * sensibilidadRaton;
 
+        // roto el cuerpo del jugador en horizontal y la cámara en vertical
         transform.Rotate(Vector3.up * mouseX);
 
         _rotacionVerticalAcumulada -= mouseY;
@@ -260,23 +208,23 @@ public class PlayerMovement : MonoBehaviour
             Quaternion.Euler(_rotacionVerticalAcumulada, 0f, 0f);
     }
 
-    // =========================================================================
-    // GANCHO — Detección, vuelo y cancelación (lógica sin cambios)
-    // =========================================================================
     private void ManejarGancho()
     {
+        // botón derecho → intento lanzar el gancho
         if (!_isGrappling && Mouse.current != null
             && Mouse.current.rightButton.wasPressedThisFrame)
         {
             IntentarLanzarGancho();
         }
 
+        // si salto mientras el gancho está activo, lo cancelo con un pequeño impulso
         if (_isGrappling && _accionSaltar.WasPressedThisFrame())
         {
             CancelarGancho(aplicarImpulso: true);
             return;
         }
 
+        // si llego al punto de enganche lo suelto automáticamente
         if (_isGrappling)
         {
             float distanciaAlPunto = Vector3.Distance(transform.position, _ganchoPoint);
@@ -288,9 +236,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Lanza un Raycast desde la cámara. Si impacta, activa el gancho y enciende el cable.
-    /// </summary>
+    // raycast desde el centro de la cámara hacia adelante; si impacta activo el gancho
     private void IntentarLanzarGancho()
     {
         Ray rayo = new Ray(
@@ -302,7 +248,7 @@ public class PlayerMovement : MonoBehaviour
         {
             _ganchoPoint       = impacto.point;
             _isGrappling       = true;
-            _isDashing         = false;
+            _isDashing         = false; // el gancho cancela el dash si estaba activo
             _velocidadVertical = 0f;
 
             if (grappleLine != null)
@@ -317,9 +263,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Cancela el gancho y apaga el cable visual.
-    /// </summary>
+    // desactivo el gancho y apago el cable; con aplicarImpulso le doy un saltito al soltarlo
     private void CancelarGancho(bool aplicarImpulso)
     {
         _isGrappling = false;
@@ -338,38 +282,21 @@ public class PlayerMovement : MonoBehaviour
             grappleLine.enabled = false;
     }
 
-    // =========================================================================
-    // CABLE VISUAL — Actualización frame a frame en LateUpdate
-    //
-    // Posición 0 (origen) → grappleOrigin.position
-    //   Usamos el Transform configurable desde el Inspector para que el cable
-    //   salga desde la mano/arma del jugador y se vea bien en primera persona.
-    //   Si grappleOrigin no está asignado, se usa la cámara como fallback seguro.
-    //
-    // Posición 1 (destino) → _ganchoPoint
-    //   Punto fijo en la geometría de la escena capturado al lanzar el gancho.
-    // =========================================================================
+    // posición 0 del LineRenderer = origen del cable (mano/arma o cámara como fallback)
+    // posición 1 = punto fijo en la geometría de la escena donde se enganchó
     private void ActualizarCableVisual()
     {
         if (!_isGrappling || grappleLine == null) return;
 
-        // Origen del cable: grappleOrigin si está asignado, cámara si no lo está.
-        // El operador condicional ternario (?:) evita una NullReferenceException
-        // si el desarrollador olvidó asignar grappleOrigin en el Inspector.
+        // si no asigné grappleOrigin en el Inspector uso la cámara para evitar NullReferenceException
         Vector3 origenCable = (grappleOrigin != null)
             ? grappleOrigin.position
             : camaraPrimeraPersona.transform.position;
 
-        // Posición 0 → origen del cable (mano/arma del jugador)
         grappleLine.SetPosition(0, origenCable);
-
-        // Posición 1 → destino del cable (punto de enganche en la escena)
         grappleLine.SetPosition(1, _ganchoPoint);
     }
 
-    // =========================================================================
-    // DASH — Sin cambios
-    // =========================================================================
     private void ManejarDash()
     {
         if (_isGrappling || _isDashing || _dashEnCooldown) return;
@@ -380,6 +307,7 @@ public class PlayerMovement : MonoBehaviour
             Vector3 direccionDeseada = (transform.right   * inputMover.x)
                                      + (transform.forward * inputMover.y);
 
+            // si no me estoy moviendo, el dash va hacia adelante
             if (direccionDeseada.magnitude < 0.1f)
                 direccionDeseada = transform.forward;
 
@@ -390,9 +318,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // =========================================================================
-    // CORRUTINA DASH — Sin cambios
-    // =========================================================================
+    // el dash dura dashDuracion segundos y luego espera el cooldown antes de poder volver a usarlo
     private IEnumerator CorrutinaDash()
     {
         _isDashing         = true;
@@ -411,12 +337,9 @@ public class PlayerMovement : MonoBehaviour
         Debug.Log("[PlayerMovement] Dash disponible.");
     }
 
-    // =========================================================================
-    // MOVIMIENTO — Sin cambios
-    // =========================================================================
     private void ManejarMovimiento()
     {
-        // PRIORIDAD 1: Gancho activo
+        // prioridad 1: si el gancho está activo me muevo hacia el punto de enganche
         if (_isGrappling)
         {
             Vector3 direccionAlGancho = (_ganchoPoint - transform.position).normalized;
@@ -424,23 +347,23 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // PRIORIDAD 2: Dash activo
+        // prioridad 2: si el dash está activo me muevo en su dirección
         if (_isDashing)
         {
             _characterController.Move(_dashDireccion * dashVelocidad * Time.deltaTime);
             return;
         }
 
-        // MOVIMIENTO NORMAL (WASD + gravedad + doble salto)
+        // movimiento normal con gravedad y doble salto
         Vector2 inputMover = _accionMover.ReadValue<Vector2>();
         Vector3 direccion  = (transform.right   * inputMover.x)
                            + (transform.forward * inputMover.y);
 
         if (_characterController.isGrounded)
         {
-            _saltosRestantes = saltosMaximos;
+            _saltosRestantes = saltosMaximos; // recargo los saltos al tocar el suelo
             if (_velocidadVertical < 0f)
-                _velocidadVertical = -2f;
+                _velocidadVertical = -2f;     // valor negativo pequeño para quedarme pegado al suelo
         }
 
         if (_accionSaltar.WasPressedThisFrame() && _saltosRestantes > 0)

@@ -1,8 +1,5 @@
-/// <summary>
-/// CAPA DE DOMINIO — Datos puros de un arma en el inventario.
-/// ► C# puro: sin UnityEngine, sin MonoBehaviour.
-/// ► El Adapter mapea ArmaDefinicion (ScriptableObject) → ArmaInventario al recoger el arma.
-/// </summary>
+// Datos puros de un arma dentro del inventario: C# puro, sin UnityEngine
+// El adapter mapea ArmaDefinicion (ScriptableObject) → ArmaInventario al recoger el arma
 public class ArmaInventario
 {
     public string Id             { get; }

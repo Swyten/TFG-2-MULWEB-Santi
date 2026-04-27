@@ -1,20 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// ADAPTADOR — Arma recogible en el mundo (loot drop).
-///
-/// CONFIGURACIÓN DEL PREFAB:
-///   1. SphereCollider con "Is Trigger" activado (radio = radioRecogida).
-///   2. Este componente ArmaPickupAdapter.
-///   3. (Opcional) GameObject hijo "TextoRecogida" con Canvas world-space
-///      para mostrar el hint "Pulsa E para recoger". Se activa/desactiva
-///      automáticamente cuando el jugador entra/sale del rango.
-///
-/// CONFIGURACIÓN EN EL INSPECTOR:
-///   • definicion       → ScriptableObject ArmaDefinicion del arma que representa.
-///   • textoRecogida    → GameObject con el hint visual (puede dejarse vacío).
-/// </summary>
+// Controla el arma recogible en el suelo (loot drop)
+// Necesita un SphereCollider con "Is Trigger" activado para detectar cuando me acerco
+// Al entrar en el trigger aparece el hint "Pulsa E para recoger"; al salir desaparece
 [RequireComponent(typeof(Collider))]
 public class ArmaPickupAdapter : MonoBehaviour
 {
@@ -28,19 +17,17 @@ public class ArmaPickupAdapter : MonoBehaviour
 
     private bool _jugadorEnRango;
 
-    // ── Ciclo de vida ─────────────────────────────────────────────────────────
-
     private void Awake()
     {
         if (definicion == null)
             Debug.LogError($"[ArmaPickupAdapter] '{gameObject.name}' no tiene 'definicion' asignada.");
 
-        // Asegurar que el collider sea trigger
+        // me aseguro de que el collider es trigger aunque alguien lo haya dejado sin marcar
         if (TryGetComponent(out Collider col))
             col.isTrigger = true;
 
         if (textoRecogida != null)
-            textoRecogida.SetActive(false);
+            textoRecogida.SetActive(false); // empieza oculto
     }
 
     private void Update()
@@ -51,11 +38,9 @@ public class ArmaPickupAdapter : MonoBehaviour
             Recoger();
     }
 
-    // ── Trigger ───────────────────────────────────────────────────────────────
-
     private void OnTriggerEnter(Collider other)
     {
-if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player")) return;
         _jugadorEnRango = true;
         if (textoRecogida != null) textoRecogida.SetActive(true);
         Debug.Log($"[ArmaPickupAdapter] Jugador en rango de '{definicion?.nombreArma}'.");
@@ -68,16 +53,15 @@ if (!other.CompareTag("Player")) return;
         if (textoRecogida != null) textoRecogida.SetActive(false);
     }
 
-    // ── Recogida ──────────────────────────────────────────────────────────────
-
     private void Recoger()
     {
-if (GameManager.Instancia == null)
+        if (GameManager.Instancia == null)
         {
             Debug.LogWarning("[ArmaPickupAdapter] GameManager.Instancia es null.");
             return;
         }
 
+        // le digo al GameManager que añada el arma al inventario y destruyo el pickup
         GameManager.Instancia.AgregarArmaAlInventario(definicion);
         Debug.Log($"[ArmaPickupAdapter] '{definicion.nombreArma}' recogida.");
         Destroy(gameObject);

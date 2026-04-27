@@ -1,22 +1,16 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// CAPA DE DOMINIO — Gestión pura de la vida del jugador.
-/// ► No depende de MonoBehaviour, ni de UI, ni de ningún framework externo.
-/// ► Emite eventos tipados que los Adaptadores escuchan para actualizar la vista.
-/// </summary>
+// Dominio de la vida del jugador: C# puro, sin MonoBehaviour, sin UI
+// Los adapters escuchan los eventos y actualizan la vista; el dominio no sabe nada de ellos
 public class PlayerVidaDomain
 {
-    // ── Eventos ──────────────────────────────────────────────────────────────
-
-    /// <summary>Vida cambió. Parámetros: (vidaActual, vidaMaxima).</summary>
+    // vida cambió → parámetros: (vidaActual, vidaMaxima)
     public event Action<float, float> OnVidaCambiada;
 
-    /// <summary>El jugador ha llegado a 0 de vida. Se emite una sola vez.</summary>
+    // el jugador llegó a 0 de vida; se emite una sola vez
     public event Action OnJugadorMuerto;
 
-    // ── Estado ───────────────────────────────────────────────────────────────
     private float _vidaActual;
     private float _vidaMaxima;
     private bool  _estaMuerto;
@@ -25,21 +19,18 @@ public class PlayerVidaDomain
     public float VidaMaxima  => _vidaMaxima;
     public bool  EstaMuerto  => _estaMuerto;
 
-    // ── Constructor ──────────────────────────────────────────────────────────
     public PlayerVidaDomain(float vidaMaxima)
     {
         _vidaMaxima = vidaMaxima;
-        _vidaActual = vidaMaxima;
+        _vidaActual = vidaMaxima; // empieza con vida llena
         _estaMuerto = false;
     }
 
-    // ── Casos de uso ─────────────────────────────────────────────────────────
-
     public void RecibirDanio(float cantidad)
     {
-        if (_estaMuerto) return;
+        if (_estaMuerto) return; // si ya murió no proceso más daño
 
-        _vidaActual = Mathf.Max(0f, _vidaActual - cantidad);
+        _vidaActual = Mathf.Max(0f, _vidaActual - cantidad); // no bajo de 0
         Debug.Log($"[Dominio·Vida] Daño: -{cantidad} | Vida: {_vidaActual}/{_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
 
@@ -55,15 +46,16 @@ public class PlayerVidaDomain
     {
         if (_estaMuerto) return;
 
-        _vidaActual = Mathf.Min(_vidaMaxima, _vidaActual + cantidad);
+        _vidaActual = Mathf.Min(_vidaMaxima, _vidaActual + cantidad); // no supero la vida máxima
         Debug.Log($"[Dominio·Vida] Curación: +{cantidad} | Vida: {_vidaActual}/{_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
     }
 
+    // se llama desde GameManager cuando el jugador sube de nivel para actualizar la vida máxima
     public void SetVidaMaxima(float nuevaMaxima)
     {
         _vidaMaxima = nuevaMaxima;
-        _vidaActual = Mathf.Min(_vidaActual, _vidaMaxima);
+        _vidaActual = Mathf.Min(_vidaActual, _vidaMaxima); // por si la vida actual supera la nueva máxima
         Debug.Log($"[Dominio·Vida] Nueva vida máxima: {_vidaMaxima}");
         OnVidaCambiada?.Invoke(_vidaActual, _vidaMaxima);
     }

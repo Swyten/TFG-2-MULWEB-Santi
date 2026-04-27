@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.AI;
 
+// Adapter del enemigo: une el dominio con Unity (NavMesh, animaciones, efectos)
+// Busca al jugador por tag "Player" si no lo asigno en el Inspector
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemigoAdapter : MonoBehaviour
 {
@@ -30,7 +32,7 @@ public class EnemigoAdapter : MonoBehaviour
 
     private EnemigoDomain _dominio;
     private NavMeshAgent  _agente;
-    private bool          _destruyendose;
+    private bool          _destruyendose; // flag para evitar procesar lógica durante la destrucción
 
     private void Awake()
     {
@@ -42,6 +44,7 @@ public class EnemigoAdapter : MonoBehaviour
         _dominio.OnVidaCambiada += AlCambiarVida;
         _dominio.OnMuerto       += AlMorir;
 
+        // busco al jugador por tag si no lo asigné en el Inspector
         if (jugador == null)
         {
             GameObject go = GameObject.FindWithTag("Player");
@@ -52,20 +55,16 @@ public class EnemigoAdapter : MonoBehaviour
 
     private void Update()
     {
-        // Guard completo: dominio, muerte, destrucción en curso o jugador inválido
+        // compruebo todo antes de mover para no lanzar errores si algo está destruido
         if (_dominio == null || _dominio.EstaMuerto || _destruyendose) return;
-
-        // Comprobar que el jugador sigue vivo en escena (puede haberse destruido al morir)
         if (jugador == null || !jugador.gameObject.activeInHierarchy) return;
-
-        // Comprobar que el agente sigue activo
         if (_agente == null || !_agente.isActiveAndEnabled || !_agente.isOnNavMesh) return;
 
         _agente.SetDestination(jugador.position);
 
         float distancia   = Vector3.Distance(transform.position, jugador.position);
         bool  enRango     = distancia <= rangoAtaque;
-        _agente.isStopped = enRango;
+        _agente.isStopped = enRango; // paro el agente cuando estoy en rango de ataque
 
         _dominio.TickAtaque(Time.deltaTime, enRango);
     }
@@ -79,6 +78,7 @@ public class EnemigoAdapter : MonoBehaviour
         _dominio.OnMuerto       -= AlMorir;
     }
 
+    // llamado por BulletAdapter o MeleeAdapter cuando impactan al enemigo
     public void RecibirDanio(float cantidad)
     {
         if (_dominio == null || _destruyendose) return;
@@ -103,7 +103,7 @@ public class EnemigoAdapter : MonoBehaviour
         if (GameManager.Instancia != null)
             GameManager.Instancia.DarExperiencia(xp);
 
-        // Drop de arma con probabilidad configurable
+        // drop de arma con probabilidad configurable desde el Inspector
         if (armaDropeable != null && armaDropeable.pickupPrefab != null
             && Random.value <= probabilidadDrop)
         {
@@ -114,6 +114,7 @@ public class EnemigoAdapter : MonoBehaviour
 
         if (efectoMuerte != null)
         {
+            // desparenteo el efecto para que no se destruya con el enemigo
             efectoMuerte.transform.SetParent(null);
             efectoMuerte.Play();
         }
@@ -124,6 +125,6 @@ public class EnemigoAdapter : MonoBehaviour
         if (_agente != null) _agente.enabled = false;
         if (TryGetComponent(out Collider col)) col.enabled = false;
 
-        Destroy(gameObject, 0.1f);
+        Destroy(gameObject, 0.1f); // pequeño delay para que el audio y el efecto se inicien
     }
 }
